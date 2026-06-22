@@ -1,0 +1,52 @@
+name: trade-tick
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 min (GitHub may delay under load)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write   # so the runner can commit state back
+
+concurrency:
+  group: trade-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Run tick
+        env:
+          KALSHI_ENV: prod
+          # Wire these up under Settings → Secrets when ready for authed ticks:
+          # KALSHI_KEY_ID: ${{ secrets.KALSHI_KEY_ID }}
+          # KALSHI_PRIVATE_KEY: ${{ secrets.KALSHI_PRIVATE_KEY }}
+          LIVE_TRADING: "false"
+        run: |
+          # If a private key secret is set, materialize it for the client.
+          if [ -n "${KALSHI_PRIVATE_KEY:-}" ]; then
+            printf '%s' "$KALSHI_PRIVATE_KEY" > kalshi_private_key.pem
+            echo "KALSHI_PRIVATE_KEY_PATH=./kalshi_private_key.pem" >> "$GITHUB_ENV"
+          fi
+          python -m runtime.tick
+
+      - name: Commit state
+        run: |
+          git config user.name  "kalshibot[bot]"
+          git config user.email "kalshibot@users.noreply.github.com"
+          git add data/state.json data/snapshots.jsonl
+          if git diff --cached --quiet; then
+            echo "no changes"; exit 0
+          fi
+          git commit -m "tick: $(date -u +%FT%TZ)"
+          git push

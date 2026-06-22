@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KalshiBot — Dashboard</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background:#0b0d10; color:#e6e8ea; margin:0; padding:24px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .sub { color:#8a93a0; margin-bottom:20px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
+  .card { background:#14181d; border:1px solid #1f262d; border-radius:8px; padding:12px 14px; }
+  .k { color:#8a93a0; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .v { font-size:18px; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #1f262d; }
+  th { color:#8a93a0; font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .bad { color:#ff6b6b; }
+  .ok  { color:#7bd88f; }
+  a { color:#7aa7ff; }
+</style>
+</head>
+<body>
+  <h1>KalshiBot</h1>
+  <div class="sub" id="sub">loading…</div>
+
+  <div class="grid" id="kpis"></div>
+
+  <h2 style="font-size:14px;color:#8a93a0;text-transform:uppercase;letter-spacing:.04em;">Open markets snapshot</h2>
+  <table id="mkt"><thead><tr>
+    <th>Ticker</th><th>Title</th><th>Yes bid</th><th>Yes ask</th><th>Last</th><th>Volume</th>
+  </tr></thead><tbody></tbody></table>
+
+<script>
+const fmt = (v) => v === null || v === undefined ? "—" : v;
+async function load() {
+  const r = await fetch("../data/state.json?ts=" + Date.now());
+  if (!r.ok) { document.getElementById("sub").textContent = "no state yet — waiting for first tick"; return; }
+  const s = await r.json();
+  const liveCls = s.live_trading ? "bad" : "ok";
+  const liveTxt = s.live_trading ? "LIVE (real money)" : "paper / read-only";
+  document.getElementById("sub").innerHTML =
+    `generated ${s.generated_at} · env=${s.env} · <span class="${liveCls}">${liveTxt}</span>`;
+
+  const kpis = [
+    ["bankroll", fmt(s.bankroll)],
+    ["open positions", s.open_positions.length],
+    ["trades today", s.trades_today],
+    ["win rate", fmt(s.win_rate)],
+    ["predicted EV", fmt(s.predicted_ev)],
+    ["realized EV", fmt(s.realized_ev)],
+    ["markets sampled", s.open_markets_sampled],
+    ["tick ms", s.tick_duration_ms],
+  ];
+  document.getElementById("kpis").innerHTML = kpis.map(
+    ([k,v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`
+  ).join("");
+
+  const tbody = document.querySelector("#mkt tbody");
+  tbody.innerHTML = (s.markets || []).map(m => `
+    <tr>
+      <td>${m.ticker ?? ""}</td>
+      <td>${m.title ?? ""}</td>
+      <td>${fmt(m.yes_bid)}</td>
+      <td>${fmt(m.yes_ask)}</td>
+      <td>${fmt(m.last_price)}</td>
+      <td>${fmt(m.volume)}</td>
+    </tr>`).join("");
+}
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

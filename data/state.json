@@ -1,0 +1,15 @@
+{
+  "generated_at": null,
+  "env": "prod",
+  "live_trading": false,
+  "open_markets_sampled": 0,
+  "markets": [],
+  "bankroll": null,
+  "open_positions": [],
+  "trades_today": 0,
+  "win_rate": null,
+  "predicted_ev": null,
+  "realized_ev": null,
+  "tick_duration_ms": 0,
+  "note": "Awaiting first scheduled tick."
+}
