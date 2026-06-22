@@ -44,7 +44,7 @@ jobs:
         run: |
           git config user.name  "kalshibot[bot]"
           git config user.email "kalshibot@users.noreply.github.com"
-          git add data/state.json data/snapshots.jsonl
+          git add data/state.json data/snapshots.jsonl data/kalshi.db
           if git diff --cached --quiet; then
             echo "no changes"; exit 0
           fi

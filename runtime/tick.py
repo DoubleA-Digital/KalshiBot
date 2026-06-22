@@ -17,6 +17,7 @@ from pathlib import Path
 
 from kalshi import KalshiClient
 from config import Config
+from storage import connect, collect
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -30,6 +31,12 @@ def tick() -> dict:
     client = KalshiClient(cfg=cfg, signed=False) if not cfg.key_id else KalshiClient(cfg=cfg)
 
     started = time.monotonic()
+
+    # Persist to SQLite (canonical store for backtesting).
+    conn = connect()
+    result = collect(client, conn, status="open", market_limit=200)
+
+    # Re-read top markets for the dashboard snapshot.
     page = client.list_markets(limit=50, status="open")
     markets = page.get("markets", [])
 
@@ -51,6 +58,11 @@ def tick() -> dict:
         "live_trading": cfg.live_trading,
         "tick_duration_ms": int((time.monotonic() - started) * 1000),
         "open_markets_sampled": len(summary),
+        "collector": {
+            "markets_seen": result.markets_seen,
+            "price_rows_written": result.price_rows_written,
+            "errors": result.errors,
+        },
         "markets": summary,
         # Placeholders the dashboard already renders; later steps populate them.
         "bankroll": None,
@@ -69,4 +81,7 @@ def tick() -> dict:
 
 if __name__ == "__main__":
     s = tick()
-    print(f"tick ok: {s['open_markets_sampled']} markets in {s['tick_duration_ms']}ms")
+    c = s["collector"]
+    print(f"tick ok: {s['open_markets_sampled']} sampled, "
+          f"{c['markets_seen']} stored, +{c['price_rows_written']} price rows, "
+          f"{s['tick_duration_ms']}ms")

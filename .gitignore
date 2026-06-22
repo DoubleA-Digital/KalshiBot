@@ -5,7 +5,8 @@ venv/
 .env
 *.pem
 *.key
-data/*.db
 data/*.sqlite
+data/*.db-wal
+data/*.db-shm
 logs/
 .DS_Store
