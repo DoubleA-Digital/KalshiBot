@@ -34,8 +34,9 @@
 
 <script>
 const fmt = (v) => v === null || v === undefined ? "—" : v;
+const STATE_URL = "https://raw.githubusercontent.com/DoubleA-Digital/KalshiBot/main/data/state.json";
 async function load() {
-  const r = await fetch("../data/state.json?ts=" + Date.now());
+  const r = await fetch(STATE_URL + "?ts=" + Date.now(), { cache: "no-store" });
   if (!r.ok) { document.getElementById("sub").textContent = "no state yet — waiting for first tick"; return; }
   const s = await r.json();
   const liveCls = s.live_trading ? "bad" : "ok";
