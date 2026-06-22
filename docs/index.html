@@ -2,73 +2,510 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>KalshiBot — Dashboard</title>
+<title>KalshiBot — Autonomous event-contract trading</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="A learning-grade autonomous trading bot for Kalshi prediction markets. Backtest-first, paper-trading by default, real money behind an explicit flag.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: dark; }
-  body { font: 14px/1.5 ui-monospace, Menlo, monospace; background:#0b0d10; color:#e6e8ea; margin:0; padding:24px; }
-  h1 { font-size:18px; margin:0 0 4px; }
-  .sub { color:#8a93a0; margin-bottom:20px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:24px; }
-  .card { background:#14181d; border:1px solid #1f262d; border-radius:8px; padding:12px 14px; }
-  .k { color:#8a93a0; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .v { font-size:18px; margin-top:4px; }
-  table { width:100%; border-collapse:collapse; }
-  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid #1f262d; }
-  th { color:#8a93a0; font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .bad { color:#ff6b6b; }
-  .ok  { color:#7bd88f; }
-  a { color:#7aa7ff; }
+  :root {
+    color-scheme: dark;
+    --bg:        #0a0c10;
+    --bg-2:      #0f1217;
+    --panel:     #11151b;
+    --panel-2:   #161b22;
+    --line:      #1e242c;
+    --line-2:    #262e38;
+    --text:      #e6e9ee;
+    --text-2:    #aab2bd;
+    --text-3:    #6b7380;
+    --accent:    #7aa7ff;
+    --accent-2:  #5b8def;
+    --ok:        #4ade80;
+    --warn:      #fbbf24;
+    --bad:       #f87171;
+    --grad: radial-gradient(1200px 600px at 80% -10%, rgba(91,141,239,.18), transparent 60%),
+            radial-gradient(900px 500px at -10% 10%, rgba(74,222,128,.08), transparent 60%);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.55;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ----- layout ----- */
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  @media (max-width: 700px) { .wrap { padding: 0 20px; } }
+
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(10,12,16,.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.01em; }
+  .brand .logo {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, #5b8def, #4ade80);
+    box-shadow: 0 0 24px rgba(91,141,239,.4);
+  }
+  .nav-links { display: flex; gap: 22px; font-size: 14px; color: var(--text-2); }
+  .nav-links a { color: var(--text-2); }
+  .nav-links a:hover { color: var(--text); text-decoration: none; }
+  @media (max-width: 700px) { .nav-links { display: none; } }
+
+  /* ----- hero ----- */
+  .hero { padding: 72px 0 56px; background: var(--grad); border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 11px; border: 1px solid var(--line-2); border-radius: 999px;
+    font-size: 12px; color: var(--text-2); margin-bottom: 22px;
+    background: rgba(255,255,255,.02);
+  }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+           box-shadow: 0 0 0 0 rgba(74,222,128,.6); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74,222,128,.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(74,222,128,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+  }
+  h1.title {
+    font-size: clamp(34px, 5.4vw, 56px);
+    line-height: 1.05; letter-spacing: -.02em; font-weight: 700;
+    margin: 0 0 18px; max-width: 880px;
+  }
+  h1.title em { font-style: normal; color: var(--accent); }
+  .lede { font-size: 17px; color: var(--text-2); max-width: 680px; margin: 0 0 28px; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 18px; border-radius: 9px;
+    font-size: 14px; font-weight: 500;
+    border: 1px solid var(--line-2);
+    background: var(--panel); color: var(--text);
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .btn:hover { background: var(--panel-2); border-color: #324052; text-decoration: none; }
+  .btn.primary {
+    background: linear-gradient(180deg, #5b8def, #4877e0);
+    border-color: rgba(255,255,255,.1);
+    box-shadow: 0 8px 24px -8px rgba(91,141,239,.5);
+  }
+  .btn.primary:hover { transform: translateY(-1px); }
+
+  /* ----- section ----- */
+  section { padding: 64px 0; border-bottom: 1px solid var(--line); }
+  .section-head { margin-bottom: 28px; }
+  .kicker { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  h2 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 8px; font-weight: 600; }
+  .sub2 { color: var(--text-2); max-width: 720px; }
+
+  /* ----- KPI grid ----- */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .kpi {
+    background: linear-gradient(180deg, var(--panel), var(--bg-2));
+    border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+    position: relative; overflow: hidden;
+  }
+  .kpi .label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: .1em; font-weight: 500; }
+  .kpi .value { font-size: 28px; font-weight: 600; margin-top: 6px; letter-spacing: -.01em; }
+  .kpi .value.mono { font-size: 26px; }
+  .kpi .delta { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+  .kpi .pending { color: var(--text-3); font-size: 13px; font-weight: 400; }
+
+  /* ----- status bar ----- */
+  .status-bar {
+    display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center;
+    padding: 14px 18px; margin-top: 24px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    font-size: 13px;
+  }
+  .status-bar .item { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+  .status-bar .item strong { color: var(--text); font-weight: 500; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px;
+          border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid; }
+  .pill.ok   { color: var(--ok);   border-color: rgba(74,222,128,.3);  background: rgba(74,222,128,.08); }
+  .pill.bad  { color: var(--bad);  border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); }
+  .pill.warn { color: var(--warn); border-color: rgba(251,191,36,.3);  background: rgba(251,191,36,.08); }
+
+  /* ----- build progress ----- */
+  .roadmap { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 22px; }
+  @media (max-width: 800px) { .roadmap { grid-template-columns: repeat(4, 1fr); } }
+  .step {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; font-size: 12px;
+    position: relative; min-height: 70px;
+  }
+  .step .n { font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .step .t { display: block; margin-top: 4px; color: var(--text-2); line-height: 1.3; }
+  .step.done   { background: rgba(74,222,128,.06); border-color: rgba(74,222,128,.3); }
+  .step.done .n { color: var(--ok); }
+  .step.done .t { color: var(--text); }
+  .step.next   { border-color: var(--accent-2); }
+  .step.next .n { color: var(--accent); }
+
+  /* ----- market table ----- */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .panel-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 18px; border-bottom: 1px solid var(--line);
+  }
+  .panel-head h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+  .panel-head .meta { font-size: 12px; color: var(--text-3); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 11px 18px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  th.num { text-align: right; }
+  tr.row:hover td { background: rgba(255,255,255,.02); }
+  .ticker-cell { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--text-2); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  .title-cell { color: var(--text); max-width: 460px; }
+  .prob-bar { display: flex; align-items: center; gap: 8px; }
+  .prob-bar .bar { width: 60px; height: 5px; background: var(--line-2); border-radius: 3px; overflow: hidden; }
+  .prob-bar .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+  .prob-bar .pct { min-width: 38px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+  /* ----- feature cards ----- */
+  .feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .feat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px; transition: border-color .15s, transform .15s;
+  }
+  .feat:hover { border-color: var(--line-2); transform: translateY(-2px); }
+  .feat .ico {
+    width: 36px; height: 36px; border-radius: 9px; margin-bottom: 14px;
+    background: linear-gradient(135deg, rgba(91,141,239,.2), rgba(74,222,128,.15));
+    border: 1px solid var(--line-2); display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .feat h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .feat p { margin: 0; color: var(--text-2); font-size: 13.5px; }
+  .feat .status { font-size: 11px; margin-top: 12px; display: inline-block; }
+
+  /* ----- safety call-out ----- */
+  .safety {
+    background: linear-gradient(180deg, rgba(248,113,113,.04), transparent);
+    border: 1px solid rgba(248,113,113,.18); border-radius: 12px;
+    padding: 22px 24px; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .safety .icon { font-size: 22px; }
+  .safety h4 { margin: 0 0 6px; font-size: 15px; }
+  .safety p { margin: 0; color: var(--text-2); font-size: 14px; }
+  .safety code { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; background: rgba(255,255,255,.05);
+                 padding: 1px 6px; border-radius: 4px; color: var(--text); }
+
+  footer { padding: 36px 0 56px; color: var(--text-3); font-size: 13px; }
+  footer .row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 </style>
 </head>
 <body>
-  <h1>KalshiBot</h1>
-  <div class="sub" id="sub">loading…</div>
 
-  <div class="grid" id="kpis"></div>
+<nav>
+  <div class="wrap nav-inner">
+    <div class="brand"><div class="logo"></div> KalshiBot</div>
+    <div class="nav-links">
+      <a href="#live">Live data</a>
+      <a href="#how">How it works</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#safety">Safety</a>
+      <a href="https://github.com/DoubleA-Digital/KalshiBot" target="_blank">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
 
-  <h2 style="font-size:14px;color:#8a93a0;text-transform:uppercase;letter-spacing:.04em;">Open markets snapshot</h2>
-  <table id="mkt"><thead><tr>
-    <th>Ticker</th><th>Title</th><th>Yes bid</th><th>Yes ask</th><th>Last</th><th>Volume</th>
-  </tr></thead><tbody></tbody></table>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="pulse"></span> <span id="liveDot">live · prod data · paper mode</span></div>
+    <h1 class="title">An autonomous trading bot for <em>Kalshi</em>, built the boring way.</h1>
+    <p class="lede">
+      Pulls live event-contract data every 15 minutes, persists it for backtesting, and routes
+      decisions through an explicit EV → risk → execution pipeline. Real-money trading is off by
+      default and protected by a hard guard. No promised winners. Just a transparent system that
+      tells you exactly what it's doing.
+    </p>
+    <div class="cta-row">
+      <a class="btn primary" href="#live">View live markets</a>
+      <a class="btn" href="https://github.com/DoubleA-Digital/KalshiBot" target="_blank">Source on GitHub ↗</a>
+    </div>
+
+    <div class="status-bar" id="statusBar">
+      <div class="item">last tick <strong id="lastTick">—</strong></div>
+      <div class="item">env <strong id="envName" class="mono">—</strong></div>
+      <div class="item">mode <span id="modePill" class="pill ok">paper</span></div>
+      <div class="item">tradable markets <strong id="tradableCount" class="mono">—</strong></div>
+      <div class="item">tick latency <strong id="tickMs" class="mono">—</strong></div>
+    </div>
+  </div>
+</header>
+
+<section id="live">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Live data</div>
+      <h2>Top open markets</h2>
+      <p class="sub2">Tradable Kalshi markets, sorted by volume, refreshed every 15 minutes from the public API. The bar shows the market's implied probability of YES.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="label">Paper bankroll</div>
+        <div class="value mono" id="kpi-bank">—</div>
+        <div class="delta pending">awaiting step 6</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Open positions</div>
+        <div class="value mono" id="kpi-pos">0</div>
+        <div class="delta pending">awaiting step 6</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Predicted EV</div>
+        <div class="value mono" id="kpi-pev">—</div>
+        <div class="delta pending">awaiting step 4</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Realized EV</div>
+        <div class="value mono" id="kpi-rev">—</div>
+        <div class="delta pending">awaiting step 5</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Win rate</div>
+        <div class="value mono" id="kpi-wr">—</div>
+        <div class="delta pending">awaiting step 5</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Markets sampled</div>
+        <div class="value mono" id="kpi-ms">—</div>
+        <div class="delta" id="kpi-ms-sub">this tick</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 22px;">
+      <div class="panel-head">
+        <h3>Open markets · live snapshot</h3>
+        <div class="meta" id="mktMeta">—</div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table id="mkt">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Market</th>
+            <th class="num">Implied YES</th>
+            <th class="num">Bid / Ask</th>
+            <th class="num">Last</th>
+            <th class="num">Volume</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">How it works</div>
+      <h2>An eight-layer pipeline, built in order</h2>
+      <p class="sub2">Each layer has one job and is validated before the next is built. The boring sequence is the point — you can't judge a strategy without a backtester, and you can't backtest without stored history.</p>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="ico">🔌</div>
+        <h4>Kalshi API client</h4>
+        <p>RSA-PSS signed requests, rate-limited token bucket, full coverage of markets, orderbook, portfolio, and orders.</p>
+        <div class="status pill ok">step 1 · shipped</div>
+      </div>
+      <div class="feat">
+        <div class="ico">💾</div>
+        <h4>Data collection</h4>
+        <p>Every tick persists market metadata, price snapshots, and optional orderbook depth into a versioned SQLite database.</p>
+        <div class="status pill ok">step 2 · shipped</div>
+      </div>
+      <div class="feat">
+        <div class="ico">🧠</div>
+        <h4>Pluggable strategies</h4>
+        <p>A strategy returns <span class="mono">(probability, confidence)</span> for a market. Easy to swap, hard to overfit.</p>
+        <div class="status pill warn">step 3 · next</div>
+      </div>
+      <div class="feat">
+        <div class="ico">📐</div>
+        <h4>EV engine + Kelly</h4>
+        <p>Compares strategy probability against current market price, nets out Kalshi fees, sizes with fractional Kelly.</p>
+        <div class="status pill warn">step 4</div>
+      </div>
+      <div class="feat">
+        <div class="ico">🔁</div>
+        <h4>Backtester</h4>
+        <p>Replays any strategy over stored snapshots. Reports trades, win rate, P&amp;L, predicted vs realized EV, max drawdown.</p>
+        <div class="status pill warn">step 5</div>
+      </div>
+      <div class="feat">
+        <div class="ico">📝</div>
+        <h4>Paper trading</h4>
+        <p>Live data, simulated fills against a virtual bankroll. The default mode — real money never moves in development.</p>
+        <div class="status pill warn">step 6</div>
+      </div>
+      <div class="feat">
+        <div class="ico">🛡️</div>
+        <h4>Risk management</h4>
+        <p>Hard limits regardless of strategy: max position, max exposure, daily loss auto-shutdown, kill switch.</p>
+        <div class="status pill warn">step 7</div>
+      </div>
+      <div class="feat">
+        <div class="ico">⚙️</div>
+        <h4>Autonomous loop</h4>
+        <p>Ties everything together with a logged decision trail. Live trading lives behind one explicit, obvious flag.</p>
+        <div class="status pill warn">step 8</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Build progress</div>
+      <h2>2 of 8 layers shipped</h2>
+      <p class="sub2">Each block below is one cohesive layer. The bot won't place a paper trade until the EV engine and risk limits exist.</p>
+    </div>
+    <div class="roadmap">
+      <div class="step done"><span class="n">01 ✓</span><span class="t">API client</span></div>
+      <div class="step done"><span class="n">02 ✓</span><span class="t">Data collection</span></div>
+      <div class="step next"><span class="n">03 →</span><span class="t">Strategy interface</span></div>
+      <div class="step"><span class="n">04</span><span class="t">EV + Kelly</span></div>
+      <div class="step"><span class="n">05</span><span class="t">Backtester</span></div>
+      <div class="step"><span class="n">06</span><span class="t">Paper trading</span></div>
+      <div class="step"><span class="n">07</span><span class="t">Risk layer</span></div>
+      <div class="step"><span class="n">08</span><span class="t">Autonomous loop</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Safety</div>
+      <h2>Real money is off until you say otherwise</h2>
+    </div>
+    <div class="safety">
+      <div class="icon">🔒</div>
+      <div>
+        <h4>The live-trading guard</h4>
+        <p>
+          Calling <code>place_order()</code> on the Kalshi client raises immediately unless
+          <code>LIVE_TRADING=true</code> is set in your environment. The guard lives in the API client
+          itself — no later layer can route around it. The default mode is paper trading against a
+          virtual bankroll, using real market data.
+        </p>
+        <p style="margin-top: 10px;">
+          The bot does not claim to predict winners. It looks for trades where its modeled probability
+          beats the market's price by enough to overcome fees and uncertainty — and it expects most
+          markets, most of the time, to be priced correctly.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <div>KalshiBot · <span class="mono" id="footerTick">—</span></div>
+    <div>
+      <a href="https://github.com/DoubleA-Digital/KalshiBot" target="_blank">github.com/DoubleA-Digital/KalshiBot</a>
+    </div>
+  </div>
+</footer>
 
 <script>
-const fmt = (v) => v === null || v === undefined ? "—" : v;
 const STATE_URL = "https://raw.githubusercontent.com/DoubleA-Digital/KalshiBot/main/data/state.json";
-async function load() {
-  const r = await fetch(STATE_URL + "?ts=" + Date.now(), { cache: "no-store" });
-  if (!r.ok) { document.getElementById("sub").textContent = "no state yet — waiting for first tick"; return; }
-  const s = await r.json();
-  const liveCls = s.live_trading ? "bad" : "ok";
-  const liveTxt = s.live_trading ? "LIVE (real money)" : "paper / read-only";
-  document.getElementById("sub").innerHTML =
-    `generated ${s.generated_at} · env=${s.env} · <span class="${liveCls}">${liveTxt}</span>`;
 
-  const kpis = [
-    ["bankroll", fmt(s.bankroll)],
-    ["open positions", s.open_positions.length],
-    ["trades today", s.trades_today],
-    ["win rate", fmt(s.win_rate)],
-    ["predicted EV", fmt(s.predicted_ev)],
-    ["realized EV", fmt(s.realized_ev)],
-    ["markets sampled", s.open_markets_sampled],
-    ["tick ms", s.tick_duration_ms],
-  ];
-  document.getElementById("kpis").innerHTML = kpis.map(
-    ([k,v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`
-  ).join("");
+const fmt    = v => (v === null || v === undefined ? "—" : v);
+const num    = v => (v === null || v === undefined ? "—" : Number(v).toLocaleString());
+const cents  = v => (v === null || v === undefined ? "—" : `${v}¢`);
+const pct    = v => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
 
-  const tbody = document.querySelector("#mkt tbody");
-  tbody.innerHTML = (s.markets || []).map(m => `
-    <tr>
-      <td>${m.ticker ?? ""}</td>
-      <td>${m.title ?? ""}</td>
-      <td>${fmt(m.yes_bid)}</td>
-      <td>${fmt(m.yes_ask)}</td>
-      <td>${fmt(m.last_price)}</td>
-      <td>${fmt(m.volume)}</td>
-    </tr>`).join("");
+function rel(iso) {
+  if (!iso) return "—";
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "—";
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
 }
+
+async function load() {
+  let s;
+  try {
+    const r = await fetch(STATE_URL + "?ts=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) throw new Error("not ok");
+    s = await r.json();
+  } catch (e) {
+    document.getElementById("liveDot").textContent = "waiting for first tick";
+    return;
+  }
+
+  document.getElementById("liveDot").textContent =
+    `live · env=${s.env || "—"} · ${s.live_trading ? "LIVE money" : "paper mode"}`;
+  document.getElementById("lastTick").textContent  = rel(s.generated_at);
+  document.getElementById("footerTick").textContent = s.generated_at || "—";
+  document.getElementById("envName").textContent   = s.env || "—";
+  document.getElementById("tickMs").textContent    = (s.tick_duration_ms ?? "—") + " ms";
+  document.getElementById("tradableCount").textContent = num(s.tradable_markets_found ?? s.open_markets_sampled);
+
+  const mode = document.getElementById("modePill");
+  if (s.live_trading) { mode.className = "pill bad"; mode.textContent = "LIVE money"; }
+  else                { mode.className = "pill ok";  mode.textContent = "paper"; }
+
+  // KPIs
+  document.getElementById("kpi-bank").textContent = s.bankroll ?? "—";
+  document.getElementById("kpi-pos").textContent  = (s.open_positions || []).length;
+  document.getElementById("kpi-pev").textContent  = s.predicted_ev ?? "—";
+  document.getElementById("kpi-rev").textContent  = s.realized_ev  ?? "—";
+  document.getElementById("kpi-wr").textContent   = s.win_rate     ?? "—";
+  document.getElementById("kpi-ms").textContent   = num(s.open_markets_sampled ?? 0);
+
+  // Markets
+  const rows = (s.markets || []).map(m => {
+    const p = (m.implied_prob != null) ? m.implied_prob
+            : (m.mid != null ? m.mid / 100 : null);
+    const pctWidth = p == null ? 0 : Math.max(2, Math.min(100, p * 100));
+    return `
+      <tr class="row">
+        <td><div class="ticker-cell" title="${m.ticker || ""}">${m.ticker || ""}</div></td>
+        <td class="title-cell">${m.title || ""}</td>
+        <td class="num">
+          <div class="prob-bar" style="justify-content:flex-end;">
+            <div class="bar"><i style="width:${pctWidth}%"></i></div>
+            <div class="pct">${p == null ? "—" : (p * 100).toFixed(0) + "%"}</div>
+          </div>
+        </td>
+        <td class="num">${cents(m.yes_bid)} / ${cents(m.yes_ask)}</td>
+        <td class="num">${cents(m.last_price)}</td>
+        <td class="num">${num(m.volume)}</td>
+      </tr>`;
+  }).join("");
+  document.querySelector("#mkt tbody").innerHTML = rows
+    || `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-3);">No tradable markets in this snapshot.</td></tr>`;
+  document.getElementById("mktMeta").textContent =
+    `${(s.markets || []).length} shown · ${s.tradable_markets_found ?? "—"} tradable · refreshed ${rel(s.generated_at)}`;
+}
+
 load();
 setInterval(load, 30000);
 </script>

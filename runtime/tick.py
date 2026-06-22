@@ -36,17 +36,37 @@ def tick() -> dict:
     conn = connect()
     result = collect(client, conn, status="open", market_limit=200)
 
-    # Re-read top markets for the dashboard snapshot.
-    page = client.list_markets(limit=50, status="open")
-    markets = page.get("markets", [])
+    # Dashboard snapshot: only TRADABLE markets (have a yes_bid/ask), sorted by volume.
+    # Pulls multiple pages so we don't get a screen full of illiquid parlays.
+    tradable: list[dict] = []
+    cursor = None
+    for _ in range(5):
+        page = client.list_markets(limit=200, status="open", cursor=cursor)
+        for m in page.get("markets", []):
+            if m.get("yes_bid") is not None and m.get("yes_ask") is not None:
+                tradable.append(m)
+        cursor = page.get("cursor")
+        if not cursor or len(tradable) >= 200:
+            break
+
+    tradable.sort(key=lambda x: x.get("volume") or 0, reverse=True)
+
+    def _title(t: str | None) -> str:
+        if not t:
+            return ""
+        return (t[:120] + "…") if len(t) > 120 else t
 
     summary = []
-    for m in markets[:25]:  # cap to keep snapshot file small
+    for m in tradable[:30]:
+        yb, ya = m.get("yes_bid"), m.get("yes_ask")
+        mid = (yb + ya) / 2 if (yb is not None and ya is not None) else None
         summary.append({
             "ticker": m.get("ticker"),
-            "title": m.get("title"),
-            "yes_bid": m.get("yes_bid"),
-            "yes_ask": m.get("yes_ask"),
+            "title": _title(m.get("title")),
+            "yes_bid": yb,
+            "yes_ask": ya,
+            "mid": mid,
+            "implied_prob": mid / 100 if mid is not None else None,
             "last_price": m.get("last_price"),
             "volume": m.get("volume"),
             "close_time": m.get("close_time"),
@@ -58,6 +78,7 @@ def tick() -> dict:
         "live_trading": cfg.live_trading,
         "tick_duration_ms": int((time.monotonic() - started) * 1000),
         "open_markets_sampled": len(summary),
+        "tradable_markets_found": len(tradable),
         "collector": {
             "markets_seen": result.markets_seen,
             "price_rows_written": result.price_rows_written,
