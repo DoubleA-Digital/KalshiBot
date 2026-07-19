@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-19T11:51:25.606536+00:00",
+  "generated_at": "2026-07-19T13:02:32.965756+00:00",
   "env": "prod",
   "live_trading": false,
-  "tick_duration_ms": 629,
+  "tick_duration_ms": 640,
   "open_markets_sampled": 0,
   "tradable_markets_found": 0,
   "collector": {
